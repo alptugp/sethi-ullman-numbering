@@ -29,12 +29,15 @@ function calls)
 > transExp (Const x) (dst:rest) = [Mov (ImmNum x) (Reg dst)]
 > transExp (Minus e1 e2) regsNotInUse@(dst:nxt:rest)
 >   | e1Weight > e2Weight = (transExp e1 regsNotInUse) ++ (transExp e2 (nxt:rest)) ++ [Sub (Reg nxt) (Reg dst)]
->   | otherwise = (transExp e2 (nxt:dest:rest)) ++ (transExp e1 (nxt:rest)) ++ [Sub (Reg nxt) (Reg dst)]
+>   | otherwise = (transExp e2 (nxt:dest:rest)) ++ (transExp e1 (dest:rest)) ++ [Sub (Reg nxt) (Reg dst)]
 >   e1Weight = weight e1 
 >   e2Weight = wieght e2
-    
-
-
+> transExp (Apply fname paramExp) regsNotInUse@(dst:rest) = saveRegs regsNotInUse ++ transExp paramExp regsNotInUse
+>       ++ if paramReg /= dst then [Mov (Reg dst) (Reg paramReg)] else []
+>       ++ [Jsr fname] 
+>       ++ if dst /= resultReg then [Mov (Reg resultReg) (Reg dst)] else [] 
+>       ++ restoreRegs regsNotInUse
+  
 > weight :: Exp -> Int
 > weight (Const _) = 1
 > weight (Var _) = 1
