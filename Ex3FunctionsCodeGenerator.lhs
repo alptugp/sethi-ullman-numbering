@@ -29,10 +29,13 @@ function calls)
 > transExp :: Exp -> [Register] -> [Instr]
 > transExp (Var v) (dst:rest) = [Mov (Reg paramReg) (Reg dst)]
 > transExp (Const x) (dst:rest) = [Mov (ImmNum x) (Reg dst)]
+> transExp (Apply fname (Var _)) regsNotInUse@(dst:rest) = saveRegs regsNotInUse ++ [Jsr fname]
+>       ++ (if (resultReg /= dst) then ([Mov (Reg resultReg) (Reg dst)]) else []) 
+>       ++ restoreRegs regsNotInUse
 > transExp (Apply fname paramExp) regsNotInUse@(dst:rest) = saveRegs regsNotInUse ++ transExp paramExp regsNotInUse
->       ++ (if paramReg /= dst then [Mov (Reg dst) (Reg paramReg)] else [])
+>       ++ (if (paramReg /= dst) then ([Mov (Reg dst) (Reg paramReg)]) else [])
 >       ++ [Jsr fname] 
->       ++ (if dst /= resultReg then [Mov (Reg resultReg) (Reg dst)] else []) 
+>       ++ (if (dst /= resultReg) then ([Mov (Reg resultReg) (Reg dst)]) else []) 
 >       ++ restoreRegs regsNotInUse
 > transExp (Plus e1 e2) regsNotInUse = transBiOpExp e1 e2 regsNotInUse "Plus"
 > transExp (Minus e1 e2) regsNotInUse = transBiOpExp e1 e2 regsNotInUse "Minus"
@@ -62,4 +65,3 @@ function calls)
 > restoreRegs :: [Register] -> [Instr]
 > restoreRegs regsNotInUse
 >  = [Mov Pop (Reg regInUse) | regInUse <- reverse (allRegs \\ regsNotInUse)]
-
