@@ -29,17 +29,26 @@ function calls)
 > transExp :: Exp -> [Register] -> [Instr]
 > transExp (Var v) (dst:rest) = [Mov (Reg paramReg) (Reg dst)]
 > transExp (Const x) (dst:rest) = [Mov (ImmNum x) (Reg dst)]
-> transExp (Minus e1 e2) regsNotInUse@(dst:nxt:rest)
->   | e1Weight > e2Weight = (transExp e1 regsNotInUse) ++ (transExp e2 (nxt:rest)) ++ [Sub (Reg nxt) (Reg dst)]
->   | otherwise = (transExp e2 (nxt:dst:rest)) ++ (transExp e1 (dst:rest)) ++ [Sub (Reg nxt) (Reg dst)]
->   where
->       e1Weight = weight e1 
->       e2Weight = weight e2
 > transExp (Apply fname paramExp) regsNotInUse@(dst:rest) = saveRegs regsNotInUse ++ transExp paramExp regsNotInUse
 >       ++ (if paramReg /= dst then [Mov (Reg dst) (Reg paramReg)] else [])
 >       ++ [Jsr fname] 
 >       ++ (if dst /= resultReg then [Mov (Reg resultReg) (Reg dst)] else []) 
 >       ++ restoreRegs regsNotInUse
+> transExp (Plus e1 e2) regsNotInUse = transBiOpExp e1 e2 regsNotInUse "Plus"
+> transExp (Minus e1 e2) regsNotInUse = transBiOpExp e1 e2 regsNotInUse "Minus"
+
+
+> transBiOpExp :: Exp -> Exp -> [Register] -> String -> [Instr]
+> transBiOpExp e1 e2 regsNotInUse@(dst:nxt:rest) biOp
+>   | e1Weight > e2Weight = (transExp e1 regsNotInUse) ++ (transExp e2 (nxt:rest)) ++ transBiOp dst nxt biOp
+>   | otherwise = (transExp e2 (nxt:dst:rest)) ++ (transExp e1 (dst:rest)) ++ transBiOp dst nxt biOp
+>   where
+>       e1Weight = weight e1 
+>       e2Weight = weight e2
+>       transBiOp :: Register -> Register -> String -> [Instr]
+>       transBiOp reg reg' "Plus" = [Add (Reg reg) (Reg reg')]
+>       transBiOp reg reg' "Minus" = [Sub (Reg reg') (Reg reg)]
+
   
 > weight :: Exp -> Int
 > weight (Const _) = 1
@@ -48,7 +57,7 @@ function calls)
 >   where
 >       cost = max (weight e) (1 + weight e')
 >       cost' = max (1 + weight e) (weight e')
-> weight (Apply _ paramExp) = 1 + weight paramExp
+> weight (Apply _ paramExp) = (weight paramExp) + 1
 
 > restoreRegs :: [Register] -> [Instr]
 > restoreRegs regsNotInUse
